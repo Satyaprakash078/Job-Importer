@@ -59,6 +59,7 @@ const ImportLogList = () => {
         <table className="min-w-full border border-gray-200">
           <thead className="bg-gray-100">
             <tr className="text-left">
+              <th className="p-2 border">FileName</th>
               <th className="p-2 border">Timestamp</th>
               <th className="p-2 border">Fetched</th>
               <th className="p-2 border">Imported</th>
@@ -71,6 +72,7 @@ const ImportLogList = () => {
           <tbody>
             {currentLogs.map((log) => (
               <tr key={log._id} className="text-center hover:bg-gray-50">
+                <td className="p-2 border">{log.fileName}</td>
                 <td className="p-2 border">{new Date(log.timestamp).toLocaleString()}</td>
                 <td className="p-2 border">{log.totalFetched}</td>
                 <td className="p-2 border">{log.totalImported}</td>

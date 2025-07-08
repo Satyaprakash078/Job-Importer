@@ -1,26 +1,35 @@
-import dotenv from 'dotenv';
-dotenv.config(); 
+import Queue from 'bull';
 import mongoose from 'mongoose';
-import { jobQueue } from './jobQueue.js';
+import dotenv from 'dotenv';
 import Job from '../models/Job.js';
 import ImportLog from '../models/ImportLog.js';
 
-
+dotenv.config();
 
 await mongoose.connect(process.env.MONGO_URI);
 
+const jobQueue = new Queue('job-import-queue', process.env.REDIS_URL);
+
+// Counters
 let totalFetched = 0;
 let totalImported = 0;
 let newJobs = 0;
 let updatedJobs = 0;
 let failedJobs = [];
+let sourceUrl = ''; // Store URL for fileName
 
 jobQueue.process(5, async (job) => {
-    console.log(' Processing job:', job.data.title);
-  totalFetched++;
-
-  const data = job.data;
   try {
+    const data = job.data;
+    // console.log('Processing job:', data.title);
+
+    
+    if (!sourceUrl && data?.source) {
+      sourceUrl = data.source;
+    }
+
+    totalFetched++;
+
     const existing = await Job.findOne({ jobId: data.jobId });
 
     if (existing) {
@@ -33,22 +42,36 @@ jobQueue.process(5, async (job) => {
 
     totalImported++;
   } catch (err) {
-    failedJobs.push({ jobId: data.jobId, reason: err.message });
+    failedJobs.push({
+      jobId: job?.data?.jobId || 'unknown',
+      reason: err.message,
+    });
   }
 });
 
 jobQueue.on('drained', async () => {
-  // Once queue is empty, log the summary
-  const log = new ImportLog({
-    totalFetched,
-    totalImported,
-    newJobs,
-    updatedJobs,
-    failedJobs
-  });
+  try {
+    const log = new ImportLog({
+      fileName: sourceUrl || 'Unknown Source',
+      timestamp: new Date(),
+      totalFetched,
+      totalImported,
+      newJobs,
+      updatedJobs,
+      failedJobs,
+    });
 
-  await log.save();
+    await log.save();
+    console.log(' Import log saved:', log);
 
-  console.log('Import log saved.');
-  process.exit(0); // Stop the worker when done
+    // Reset counters
+    totalFetched = 0;
+    totalImported = 0;
+    newJobs = 0;
+    updatedJobs = 0;
+    failedJobs = [];
+    sourceUrl = '';
+  } catch (err) {
+    console.error('Failed to save import log:', err.message);
+  }
 });

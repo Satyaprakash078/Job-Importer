@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
+const api=axios.create({
+  baseURL:process.env.REACT_APP_API_URL
+})
+
 const ImportLogList = () => {
   const [logs, setLogs] = useState([]);
   const [showOnlyFailed, setShowOnlyFailed] = useState(false);
@@ -10,7 +14,7 @@ const ImportLogList = () => {
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/jobs/import-logs");
+        const res = await api.get("/api/jobs/import-logs");
         setLogs(res.data);
       } catch (err) {
         console.error("Failed to fetch logs", err);
